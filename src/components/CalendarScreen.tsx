@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin, Clock, List, Grid3x3 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin, Clock, List, Grid3x3, Plus } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "./ui/button";
 import { cn } from "./ui/utils";
@@ -13,6 +13,8 @@ interface CalendarScreenProps {
   onNavigateToDashboard: () => void;
   onNavigateToProfile: () => void;
   onNavigateToChallenges: () => void;
+  onNavigateToLogPractice?: () => void;
+  onEditPractice?: (practice: PracticeSession) => void;
 }
 
 type ViewMode = "calendar" | "list";
@@ -22,6 +24,8 @@ export function CalendarScreen({
   onNavigateToDashboard,
   onNavigateToProfile,
   onNavigateToChallenges,
+  onNavigateToLogPractice,
+  onEditPractice,
 }: CalendarScreenProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -92,10 +96,10 @@ export function CalendarScreen({
   const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-24">
+    <div className="min-h-screen bg-background flex flex-col pb-24 relative">
       {/* Header */}
       <PageHeader 
-        title="カレンダー"
+        title="練習記録"
         subtitle={new Date().toLocaleDateString("ja-JP", {
           year: "numeric",
           month: "long",
@@ -161,7 +165,7 @@ export function CalendarScreen({
 
             {/* Calendar Grid */}
             <div className="px-4 pb-4">
-              <div className="grid grid-cols-7 gap-y-4 gap-x-1">
+              <div className="grid grid-cols-7  gap-x-1">
                 {calendarData.map((item, index) => {
                   if (!item.day || !item.fullDate) {
                     return <div key={`empty-${index}`} />;
@@ -176,12 +180,12 @@ export function CalendarScreen({
                     <button
                       key={index}
                       onClick={() => setSelectedDate(item.fullDate!)}
-                      className="relative flex flex-col items-center justify-start h-14 pt-1 rounded-xl transition-colors"
+                      className="relative flex flex-col items-center justify-start h-12 pt-1 rounded-xl transition-colors"
                     >
                       <span className={cn(
                         "w-8 h-8 flex items-center justify-center rounded-full text-sm transition-all",
                         isSelected ? "bg-primary text-primary-foreground font-bold shadow-md" : 
-                        isToday ? "bg-accent text-accent-foreground font-semibold border border-primary/30" : "text-foreground",
+                        isToday ? "bg-accent/10 text-accent-foreground font-semibold border border-primary/30" : "text-foreground",
                         !isSelected && !isToday && "hover:bg-secondary/50"
                       )}>
                         {item.day}
@@ -207,16 +211,7 @@ export function CalendarScreen({
 
             {/* Selected Date Details */}
             <div className="bg-card/50 mt-4 rounded-t-3xl p-4 shadow-[0_-4px_16px_-4px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold text-lg">
-                  {selectedDate.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "long" })}
-                </h2>
-                <span className="text-xs text-muted-foreground">
-                  {selectedDayPractices.length}件の記録
-                </span>
-              </div>
-
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {selectedDayPractices.length === 0 ? (
                   <div className="text-center py-10 text-muted-foreground border-2 border-dashed border-border/50 rounded-2xl">
                     <p>この日の練習記録はありません</p>
@@ -227,51 +222,66 @@ export function CalendarScreen({
                       key={practice.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-background border border-border rounded-xl p-4 shadow-sm"
+                      className="flex gap-3"
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="w-4 h-4" />
-                          <span>{new Date(practice.date).toLocaleTimeString("ja-JP", { hour: '2-digit', minute: '2-digit' })}</span>
-                          <span>•</span>
-                          <span>{practice.duration}分</span>
+                      {/* Date and Day Column */}
+                      <div className="flex flex-col items-center justify-start pt-1 min-w-[50px]">
+                        <div className="text-2xl font-semibold">
+                          {selectedDate.getDate()}
                         </div>
-                        {practice.intensity && (
-                          <div className="flex gap-0.5">
-                            {[...Array(5)].map((_, i) => (
-                              <div 
-                                key={i} 
-                                className={cn(
-                                  "w-1 h-3 rounded-full",
-                                  i < practice.intensity ? "bg-primary" : "bg-secondary"
-                                )} 
-                              />
+                        <div className="text-xs text-muted-foreground uppercase">
+                          {selectedDate.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()}
+                        </div>
+                      </div>
+
+                      {/* Practice Details */}
+                      <button 
+                        onClick={() => onEditPractice?.(practice)}
+                        className="flex-1 bg-background rounded-xl p-4 shadow-sm hover:bg-accent/50 transition-colors text-left"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="w-4 h-4" />
+                            <span>{new Date(practice.date).toLocaleTimeString("ja-JP", { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span>-</span>
+                            <span>{new Date(new Date(practice.date).getTime() + practice.duration * 60000).toLocaleTimeString("ja-JP", { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          {practice.intensity && (
+                            <div className="flex gap-0.5">
+                              {[...Array(5)].map((_, i) => (
+                                <div 
+                                  key={i} 
+                                  className={cn(
+                                    "w-1 h-3 rounded-full",
+                                    i < practice.intensity ? "bg-primary" : "bg-secondary"
+                                  )} 
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="font-medium mb-2">
+                          {practice.location}
+                          {practice.instructor && <span className="text-muted-foreground font-normal text-sm ml-2">• {practice.instructor}</span>}
+                        </div>
+
+                        {practice.techniques && practice.techniques.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-3">
+                            {practice.techniques.map((tech, i) => (
+                              <span key={i} className="text-xs bg-accent text-accent-foreground px-2 py-1 rounded-md">
+                                {tech}
+                              </span>
                             ))}
                           </div>
                         )}
-                      </div>
-                      
-                      <div className="flex items-center gap-2 mb-2 text-sm font-medium">
-                         <MapPin className="w-4 h-4 text-muted-foreground" />
-                         {practice.location}
-                         {practice.instructor && <span className="text-muted-foreground font-normal">• {practice.instructor}</span>}
-                      </div>
-
-                      {practice.techniques && practice.techniques.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-3">
-                          {practice.techniques.map((tech, i) => (
-                            <span key={i} className="text-xs bg-accent text-accent-foreground px-2 py-1 rounded-md">
-                              {tech}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {practice.notes && (
-                        <p className="text-sm text-muted-foreground mt-3 pt-3 border-t border-border/50 line-clamp-2">
-                          {practice.notes}
-                        </p>
-                      )}
+                        
+                        {practice.notes && (
+                          <p className="text-sm text-muted-foreground mt-3 pt-3 border-t border-border/50 line-clamp-2">
+                            {practice.notes}
+                          </p>
+                        )}
+                      </button>
                     </motion.div>
                   ))
                 )}
@@ -292,71 +302,86 @@ export function CalendarScreen({
                   key={practice.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-card border border-border rounded-xl p-4 shadow-sm"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="font-medium flex items-center gap-2">
-                      <span className="text-lg">
-                        {new Date(practice.date).getDate()}日
-                        <span className="text-xs text-muted-foreground ml-1">
-                          ({new Date(practice.date).toLocaleDateString("ja-JP", { weekday: "short" })})
+                  <button
+                    onClick={() => onEditPractice?.(practice)}
+                    className="w-full bg-card border border-border rounded-xl p-4 shadow-sm hover:bg-accent/50 transition-colors text-left"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="font-medium flex items-center gap-2">
+                        <span className="text-lg">
+                          {new Date(practice.date).getDate()}日
+                          <span className="text-xs text-muted-foreground ml-1">
+                            ({new Date(practice.date).toLocaleDateString("ja-JP", { weekday: "short" })})
+                          </span>
                         </span>
-                      </span>
-                      {practice.duration > 0 && (
-                        <span className="text-xs bg-secondary px-2 py-0.5 rounded-full text-secondary-foreground">
-                          {practice.duration}分
-                        </span>
-                      )}
-                    </div>
-                    {practice.intensity && (
-                      <div className="flex gap-0.5">
-                        {[...Array(5)].map((_, i) => (
-                          <div 
-                            key={i} 
-                            className={cn(
-                              "w-1 h-3 rounded-full",
-                              i < practice.intensity ? "bg-primary" : "bg-secondary"
-                            )} 
-                          />
-                        ))}
+                        {practice.duration > 0 && (
+                          <span className="text-xs bg-secondary px-2 py-0.5 rounded-full text-secondary-foreground">
+                            {practice.duration}分
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="w-3 h-3" />
-                      <span>{practice.location}</span>
-                      {practice.instructor && (
-                        <>
-                          <span>•</span>
-                          <span>{practice.instructor}</span>
-                        </>
+                      {practice.intensity && (
+                        <div className="flex gap-0.5">
+                          {[...Array(5)].map((_, i) => (
+                            <div 
+                              key={i} 
+                              className={cn(
+                                "w-1 h-3 rounded-full",
+                                i < practice.intensity ? "bg-primary" : "bg-secondary"
+                              )} 
+                            />
+                          ))}
+                        </div>
                       )}
                     </div>
                     
-                    {practice.techniques && practice.techniques.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {practice.techniques.map((tech, i) => (
-                          <span key={i} className="text-xs bg-accent/50 text-accent-foreground px-2 py-0.5 rounded-md">
-                            {tech}
-                          </span>
-                        ))}
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="w-3 h-3" />
+                        <span>{practice.location}</span>
+                        {practice.instructor && (
+                          <>
+                            <span>•</span>
+                            <span>{practice.instructor}</span>
+                          </>
+                        )}
                       </div>
-                    )}
+                      
+                      {practice.techniques && practice.techniques.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {practice.techniques.map((tech, i) => (
+                            <span key={i} className="text-xs bg-accent/50 text-accent-foreground px-2 py-0.5 rounded-md">
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
-                    {practice.notes && (
-                      <p className="text-sm text-muted-foreground mt-2 pt-2 border-t border-border/50 line-clamp-2">
-                        {practice.notes}
-                      </p>
-                    )}
-                  </div>
+                      {practice.notes && (
+                        <p className="text-sm text-muted-foreground mt-2 pt-2 border-t border-border/50 line-clamp-2">
+                          {practice.notes}
+                        </p>
+                      )}
+                    </div>
+                  </button>
                 </motion.div>
               ))
             )}
           </div>
         )}
       </div>
+
+      {/* Floating Add Button */}
+      {viewMode === "calendar" && onNavigateToLogPractice && (
+        <button
+          onClick={onNavigateToLogPractice}
+          className="fixed right-6 bottom-28 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform z-20"
+          aria-label="練習を記録"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      )}
 
       <BottomNav 
         activeTab="calendar"

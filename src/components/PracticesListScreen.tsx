@@ -7,7 +7,7 @@ import { cn } from "./ui/utils";
 interface PracticesListScreenProps {
   practices: PracticeSession[];
   onBack: () => void;
-  onPracticeClick: (id: string) => void;
+  onPracticeClick?: (practice: PracticeSession) => void;
 }
 
 export function PracticesListScreen({ 
@@ -58,10 +58,10 @@ export function PracticesListScreen({
                 <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">{monthLabel}</h2>
                 <div className="space-y-3">
                   {groupedPractices[monthKey].map((practice) => (
-                    <div 
+                    <button 
                       key={practice.id}
-                      onClick={() => onPracticeClick(practice.id)}
-                      className="bg-card border border-border rounded-xl p-4 active:scale-[0.99] transition-transform cursor-pointer hover:border-primary/30"
+                      onClick={() => onPracticeClick?.(practice)}
+                      className="w-full bg-card border border-border rounded-xl p-4 active:scale-[0.99] transition-transform hover:border-primary/30 text-left"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div className="font-medium flex items-center gap-2">
@@ -101,7 +101,7 @@ export function PracticesListScreen({
                           </div>
                         )}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>

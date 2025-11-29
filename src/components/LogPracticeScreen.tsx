@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Calendar as CalendarIcon, MapPin, Save, User, Check, ChevronsUpDown } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, MapPin, Save, User, ChevronRight, Target, Plus, Minus } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { cn } from "./ui/utils";
@@ -11,37 +11,40 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "./ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "./ui/command";
-import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
-import { Slider } from "./ui/slider";
 import { toast } from "sonner";
 import { PracticeSession } from "../utils/types";
 
 interface LogPracticeScreenProps {
   onBack: () => void;
-  onSave?: (data: Omit<PracticeSession, "id">) => void;
-  availableInstructors?: string[];
+  onSave?: (data: Omit<PracticeSession, "id">, id?: string) => void;
+  onSelectLocation?: () => void;
+  onSelectTechnique?: () => void;
+  onSelectInstructor?: () => void;
+  selectedLocation?: string;
+  selectedTechnique?: string;
+  selectedInstructor?: string;
+  editingPractice?: PracticeSession;
 }
 
-export function LogPracticeScreen({ onBack, onSave, availableInstructors = [] }: LogPracticeScreenProps) {
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [duration, setDuration] = useState<number>(90);
-  const [location, setLocation] = useState("");
-  const [notes, setNotes] = useState("");
-  // Hidden field, default to 3
-  const [intensity] = useState(3); 
-  
-  const [instructor, setInstructor] = useState("");
-  const [instructorOpen, setInstructorOpen] = useState(false);
+export function LogPracticeScreen({ 
+  onBack, 
+  onSave,
+  onSelectLocation,
+  onSelectTechnique,
+  onSelectInstructor,
+  selectedLocation,
+  selectedTechnique,
+  selectedInstructor,
+  editingPractice,
+}: LogPracticeScreenProps) {
+  const [date, setDate] = useState<Date | undefined>(
+    editingPractice ? new Date(editingPractice.date) : new Date()
+  );
+  const [duration, setDuration] = useState<number>(editingPractice?.duration || 90);
+  const [notes, setNotes] = useState(editingPractice?.notes || "");
+  const [intensity] = useState(editingPractice?.intensity || 3); 
 
   const handleSave = () => {
     if (!date) {
@@ -52,28 +55,36 @@ export function LogPracticeScreen({ onBack, onSave, availableInstructors = [] }:
     const practiceData: Omit<PracticeSession, "id"> = {
       date: date.toISOString(),
       duration,
-      location: location || "未設定",
+      location: selectedLocation || editingPractice?.location || "未設定",
       notes,
-      intensity, // Default value
-      instructor: instructor || undefined,
-      techniques: [], // Cleared as requested
-      challenges: [] 
+      intensity,
+      instructor: selectedInstructor || editingPractice?.instructor || undefined,
+      techniques: selectedTechnique ? [selectedTechnique] : (editingPractice?.techniques || []),
+      challenges: editingPractice?.challenges || []
     };
 
     console.log("Saving practice:", practiceData);
     
     if (onSave) {
-      onSave(practiceData);
+      onSave(practiceData, editingPractice?.id);
     } else {
       onBack();
     }
+  };
+
+  const incrementDuration = () => {
+    setDuration(prev => Math.min(prev + 15, 300));
+  };
+
+  const decrementDuration = () => {
+    setDuration(prev => Math.max(prev - 15, 0));
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <PageHeader 
-        title="練習を記録"
+        title={editingPractice ? "練習を編集" : "練習を記録"}
         leftAction={
           <Button variant="ghost" size="icon" onClick={onBack} className="-ml-2">
             <ArrowLeft className="w-5 h-5" />
@@ -82,7 +93,7 @@ export function LogPracticeScreen({ onBack, onSave, availableInstructors = [] }:
       />
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
         
         {/* Date Selection */}
         <div className="space-y-2">
@@ -111,130 +122,84 @@ export function LogPracticeScreen({ onBack, onSave, availableInstructors = [] }:
           </Popover>
         </div>
 
-        {/* Duration */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <Label>練習時間</Label>
-            <span className="text-xl font-medium font-mono">{duration} <span className="text-sm text-muted-foreground font-sans">分</span></span>
-          </div>
-          <Slider
-            value={[duration]}
-            onValueChange={(vals) => setDuration(vals[0])}
-            max={180}
-            step={15}
-            className="py-4"
-          />
-          <div className="flex justify-between text-xs text-muted-foreground px-1">
-            <span>0分</span>
-            <span>90分</span>
-            <span>180分</span>
+        {/* Selection Items in Row */}
+        <div className="space-y-2">
+          <Label>選択項目</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {/* Location */}
+            <button
+              onClick={onSelectLocation}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border bg-card hover:bg-accent transition-colors"
+            >
+              <MapPin className="w-5 h-5 text-primary" />
+              <span className="text-xs text-muted-foreground">場所</span>
+              {selectedLocation && (
+                <span className="text-sm font-medium text-center line-clamp-2 mt-1">
+                  {selectedLocation}
+                </span>
+              )}
+            </button>
+
+            {/* Technique */}
+            <button
+              onClick={onSelectTechnique}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border bg-card hover:bg-accent transition-colors"
+            >
+              <Target className="w-5 h-5 text-primary" />
+              <span className="text-xs text-muted-foreground">技</span>
+              {selectedTechnique && (
+                <span className="text-sm font-medium text-center line-clamp-2 mt-1">
+                  {selectedTechnique}
+                </span>
+              )}
+            </button>
+
+            {/* Instructor */}
+            <button
+              onClick={onSelectInstructor}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border bg-card hover:bg-accent transition-colors"
+            >
+              <User className="w-5 h-5 text-primary" />
+              <span className="text-xs text-muted-foreground">先生</span>
+              {selectedInstructor && (
+                <span className="text-sm font-medium text-center line-clamp-2 mt-1">
+                  {selectedInstructor}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Location */}
+        {/* Duration with +/- buttons */}
         <div className="space-y-2">
-          <Label>場所</Label>
-          <div className="relative">
-            <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="道場名や場所を入力" 
-              className="pl-9 h-12"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-            />
+          <Label>練習時間</Label>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={decrementDuration}
+              className="h-12 w-12 rounded-full"
+            >
+              <Minus className="w-5 h-5" />
+            </Button>
+            
+            <div className="flex-1 flex items-center justify-center bg-accent/30 rounded-xl h-12">
+              <span className="text-2xl font-semibold tabular-nums">{duration}</span>
+              <span className="text-sm text-muted-foreground ml-2">分</span>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={incrementDuration}
+              className="h-12 w-12 rounded-full"
+            >
+              <Plus className="w-5 h-5" />
+            </Button>
           </div>
-        </div>
-
-        {/* Instructor */}
-        <div className="space-y-2">
-          <Label>先生（インストラクター）</Label>
-          <div className="flex gap-2">
-            <Popover open={instructorOpen} onOpenChange={setInstructorOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={instructorOpen}
-                  className="w-full justify-between h-12"
-                >
-                  {instructor ? (
-                    <div className="flex items-center">
-                       <User className="mr-2 h-4 w-4 opacity-50" />
-                       {instructor}
-                    </div>
-                  ) : (
-                    <div className="flex items-center text-muted-foreground">
-                       <User className="mr-2 h-4 w-4 opacity-50" />
-                       先生を選択または入力
-                    </div>
-                  )}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[280px] p-0" align="start">
-                <Command>
-                  <CommandInput 
-                    placeholder="先生の名前を入力..." 
-                    onValueChange={(value) => {
-                       // This allows typing new names directly if not found in list
-                       // But CommandInput doesn't directly expose value state easily for external binding in standard implementation
-                       // We will use the empty state to allow adding new
-                    }}
-                  />
-                  <CommandList>
-                    <CommandEmpty className="py-2 px-4">
-                       <p className="text-sm text-muted-foreground mb-2">見つかりませんか？</p>
-                       <Button 
-                         variant="secondary" 
-                         size="sm" 
-                         className="w-full"
-                         onClick={() => {
-                           // We can't easily get the input value from CommandInput here without controlled state on Command
-                           // So we might need a different approach or assume the user will type in a separate input if not found
-                           // Let's just simply change this UI to be "Select from history" OR "Type new"
-                           setInstructorOpen(false);
-                           toast.info("リストにない場合は直接入力してください");
-                         }}
-                       >
-                         手動で入力する
-                       </Button>
-                    </CommandEmpty>
-                    <CommandGroup heading="履歴">
-                      {availableInstructors.map((inst) => (
-                        <CommandItem
-                          key={inst}
-                          value={inst}
-                          onSelect={(currentValue) => {
-                            setInstructor(currentValue);
-                            setInstructorOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              instructor === inst ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {inst}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-          {/* Fallback / Direct Input */}
-          <div className="relative mt-2">
-             <Input 
-                placeholder="新しい先生の名前を入力" 
-                value={instructor}
-                onChange={(e) => setInstructor(e.target.value)}
-                className={cn("h-12", instructor ? "border-primary" : "")}
-             />
-             <p className="text-xs text-muted-foreground mt-1">
-               ※ 上記のリストから選択するか、直接入力してください
-             </p>
+          <div className="flex justify-between text-xs text-muted-foreground px-2">
+            <span>15分単位で調整</span>
+            <span>最大300分</span>
           </div>
         </div>
 

@@ -13,11 +13,12 @@ import { LogPracticeScreen } from "./components/LogPracticeScreen";
 import { ChallengesScreen } from "./components/ChallengesScreen";
 import { PracticesListScreen } from "./components/PracticesListScreen";
 import { CalendarScreen } from "./components/CalendarScreen";
+import { SelectItemScreen } from "./components/SelectItemScreen";
 import { supabase } from "./utils/supabase/client";
 import { toast } from "sonner";
 import { PracticeSession, Challenge } from "./utils/types";
 
-type Screen = "welcome" | "auth-login" | "auth-signup" | "forgot-password" | "email-verification" | "verification-complete" | "dashboard" | "profile" | "onboarding" | "onboarding-complete" | "log-practice" | "challenges" | "practices-list" | "calendar";
+type Screen = "welcome" | "auth-login" | "auth-signup" | "forgot-password" | "email-verification" | "verification-complete" | "dashboard" | "profile" | "onboarding" | "onboarding-complete" | "log-practice" | "challenges" | "practices-list" | "calendar" | "select-location" | "select-technique" | "select-instructor";
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("welcome");
@@ -76,8 +77,16 @@ export default function App() {
     }
   ]);
 
-  // Extract unique instructors from practices
+  // Extract unique items from practices for selection screens
   const availableInstructors = Array.from(new Set(practices.map(p => p.instructor).filter(Boolean) as string[]));
+  const availableLocations = Array.from(new Set(practices.map(p => p.location).filter(Boolean) as string[]));
+  const availableTechniques = Array.from(new Set(practices.flatMap(p => p.techniques || []).filter(Boolean) as string[]));
+
+  // Selected items for log practice
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [selectedTechnique, setSelectedTechnique] = useState<string>("");
+  const [selectedInstructor, setSelectedInstructor] = useState<string>("");
+  const [editingPractice, setEditingPractice] = useState<PracticeSession | undefined>();
 
   // MOCK SESSION
   const createMockSession = (email: string, name?: string, beltRank?: string): Session => ({
@@ -267,15 +276,36 @@ export default function App() {
     setCurrentScreen("dashboard");
   };
 
-  const handleSavePractice = (data: Omit<PracticeSession, "id">) => {
-    const newPractice: PracticeSession = {
-      ...data,
-      id: Math.random().toString(36).substr(2, 9),
-    };
+  const handleSavePractice = (data: Omit<PracticeSession, "id">, id?: string) => {
+    if (id) {
+      // Update existing practice
+      setPractices(prev => prev.map(p => p.id === id ? { ...data, id } : p));
+      toast.success("練習を更新しました");
+    } else {
+      // Create new practice
+      const newPractice: PracticeSession = {
+        ...data,
+        id: Math.random().toString(36).substr(2, 9),
+      };
+      setPractices(prev => [newPractice, ...prev]);
+      toast.success("練習を記録しました");
+    }
     
-    setPractices(prev => [newPractice, ...prev]);
-    toast.success("練習を記録しました");
+    // Clear selected items and editing state
+    setSelectedLocation("");
+    setSelectedTechnique("");
+    setSelectedInstructor("");
+    setEditingPractice(undefined);
+    
     setCurrentScreen("dashboard");
+  };
+
+  const handleEditPractice = (practice: PracticeSession) => {
+    setEditingPractice(practice);
+    setSelectedLocation(practice.location || "");
+    setSelectedTechnique(practice.techniques?.[0] || "");
+    setSelectedInstructor(practice.instructor || "");
+    setCurrentScreen("log-practice");
   };
 
   const handleAddChallenge = (data: { title: string; description: string }) => {
@@ -367,10 +397,7 @@ export default function App() {
         <PracticesListScreen
           practices={practices}
           onBack={() => setCurrentScreen("dashboard")}
-          onPracticeClick={(id) => {
-            // In the future, this could open a detailed view or edit mode
-            toast.info("練習記録の詳細表示は現在開発中です");
-          }}
+          onPracticeClick={handleEditPractice}
         />
       )}
       {currentScreen === "calendar" && (
@@ -379,6 +406,8 @@ export default function App() {
           onNavigateToDashboard={() => setCurrentScreen("dashboard")}
           onNavigateToProfile={() => setCurrentScreen("profile")}
           onNavigateToChallenges={() => setCurrentScreen("challenges")}
+          onNavigateToLogPractice={() => setCurrentScreen("log-practice")}
+          onEditPractice={handleEditPractice}
         />
       )}
       {currentScreen === "challenges" && (
@@ -392,9 +421,52 @@ export default function App() {
       )}
       {currentScreen === "log-practice" && (
         <LogPracticeScreen 
-          onBack={() => setCurrentScreen("dashboard")} 
+          onBack={() => {
+            // Clear selected items and editing state when going back
+            setSelectedLocation("");
+            setSelectedTechnique("");
+            setSelectedInstructor("");
+            setEditingPractice(undefined);
+            setCurrentScreen("dashboard");
+          }} 
           onSave={handleSavePractice}
-          availableInstructors={availableInstructors}
+          onSelectLocation={() => setCurrentScreen("select-location")}
+          onSelectTechnique={() => setCurrentScreen("select-technique")}
+          onSelectInstructor={() => setCurrentScreen("select-instructor")}
+          selectedLocation={selectedLocation}
+          selectedTechnique={selectedTechnique}
+          selectedInstructor={selectedInstructor}
+          editingPractice={editingPractice}
+        />
+      )}
+      {currentScreen === "select-location" && (
+        <SelectItemScreen
+          title="場所を選択"
+          items={availableLocations}
+          selectedItem={selectedLocation}
+          onSelect={(item) => setSelectedLocation(item)}
+          onBack={() => setCurrentScreen("log-practice")}
+          placeholder="場所を検索..."
+        />
+      )}
+      {currentScreen === "select-technique" && (
+        <SelectItemScreen
+          title="技を選択"
+          items={availableTechniques}
+          selectedItem={selectedTechnique}
+          onSelect={(item) => setSelectedTechnique(item)}
+          onBack={() => setCurrentScreen("log-practice")}
+          placeholder="技を検索..."
+        />
+      )}
+      {currentScreen === "select-instructor" && (
+        <SelectItemScreen
+          title="先生を選択"
+          items={availableInstructors}
+          selectedItem={selectedInstructor}
+          onSelect={(item) => setSelectedInstructor(item)}
+          onBack={() => setCurrentScreen("log-practice")}
+          placeholder="先生を検索..."
         />
       )}
       {currentScreen === "profile" && (
