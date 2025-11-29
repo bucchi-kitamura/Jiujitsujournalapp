@@ -1,1 +1,11 @@
-# repo-template
+
+  # Jiu-Jitsu Journal App
+
+  This is a code bundle for Jiu-Jitsu Journal App. The original project is available at https://www.figma.com/design/sAqxMg9zPVvchXdCTXF4jB/Jiu-Jitsu-Journal-App.
+
+  ## Running the code
+
+  Run `npm i` to install the dependencies.
+
+  Run `npm run dev` to start the development server.
+  
